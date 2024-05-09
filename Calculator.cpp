@@ -6,9 +6,10 @@
 #include <vector>
 #include <iterator>
 #include <stdexcept>
+#include <cctype>
 
 //Guido Fajardo
-//Calculator with Basic Arithmetic, Trigonometry, Derivatives, and Integrals.
+// Enhancements: Handling Arithmetic, Trigonometry and Additional Mathematical Functions.
 
 double applyOperation(double a, double b, char op) {
     switch (op) {
@@ -27,6 +28,11 @@ double applyFunction(const std::string& func, double arg) {
     if (func == "sin") return sin(arg);
     if (func == "cos") return cos(arg);
     if (func == "tan") return tan(arg);
+    if (func == "exp") return exp(arg);
+    if (func == "sqrt") {
+        if (arg < 0) throw std::runtime_error("sqrt of negative number");
+        return sqrt(arg);
+    }
     throw std::runtime_error("Unsupported function");
 }
 
@@ -35,35 +41,21 @@ bool isOperator(const std::string& token) {
 }
 
 bool isFunction(const std::string& token) {
-    return token == "log" || token == "sin" || token == "cos" || token == "tan";
+    return token == "log" || token == "sin" || token == "cos" || token == "tan" || token == "exp" || token == "sqrt";
 }
 
 std::vector<std::string> tokenize(const std::string& s) {
     std::istringstream iss(s);
-    std::istream_iterator<std::string> start(iss);
-    std::istream_iterator<std::string> end;
-    return std::vector<std::string>(start, end);
-}
-
-// Additional functions for derivative and integral
-double derivative(const std::string& func, double x) {
-    const double h = 1e-5; // Step size
-    double f_x = applyFunction(func, x);
-    double f_xh = applyFunction(func, x + h);
-    return (f_xh - f_x) / h;
-}
-
-double integral(const std::string& func, double a, double b, int n = 1000) {
-    double step = (b - a) / n;
-    double area = 0.0;
-    for (int i = 0; i < n; i++) {
-        double x1 = a + i * step;
-        double x2 = a + (i + 1) * step;
-        double y1 = applyFunction(func, x1);
-        double y2 = applyFunction(func, x2);
-        area += 0.5 * (y1 + y2) * step;
+    std::vector<std::string> tokens;
+    std::string token;
+    while (iss >> token) {
+        // Detect and handle unary minus
+        if (token == "-" && (tokens.empty() || isOperator(tokens.back()) || tokens.back() == "(")) {
+            tokens.push_back("0"); // Insert zero to handle unary minus
+        }
+        tokens.push_back(token);
     }
-    return area;
+    return tokens;
 }
 
 double evaluatePostfix(const std::vector<std::string>& tokens) {
@@ -79,11 +71,31 @@ double evaluatePostfix(const std::vector<std::string>& tokens) {
             double a = stack.top(); stack.pop();
             stack.push(applyFunction(token, a));
         } else {
-            stack.push(std::stod(token));  // Explicit call to std::stod with proper syntax
+            stack.push(std::stod(token));
         }
     }
     if (stack.size() != 1) throw std::runtime_error("Invalid expression");
     return stack.top();
+}
+
+double derivative(const std::string& func, double x) {
+    const double h = 1e-5;
+    double f_x = applyFunction(func, x);
+    double f_xh = applyFunction(func, x + h);
+    return (f_xh - f_x) / h;
+}
+
+double integral(const std::string& func, double a, double b, int n = 1000) {
+    double step = (b - a) / n;
+    double area = 0.0;
+    for (int i = 0; i < n; i++) {
+        double x1 = a + i * step;
+        double x2 = a + (i + 1) * step;
+        double y1 = applyFunction(func, x1);
+        double y2 = applyFunction(func, x2);
+        area += 0.5 * (y1 + y2) * step; // Trapezoidal rule
+    }
+    return area;
 }
 
 int main() {
